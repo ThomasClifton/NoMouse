@@ -7,8 +7,11 @@ import math
 def distance(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
+def scale_position(val):
+    return (val-.1)/.8
+
 if __name__ == '__main__':
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
 
     ptime = 0
     ctime = 0
@@ -20,10 +23,10 @@ if __name__ == '__main__':
     frame_w, frame_h = pag.size()
 
     mp_hands = mp.solutions.hands
-    with  mp_hands.Hands(static_image_mode=False,
+    with  (mp_hands.Hands(static_image_mode=False,
                          min_detection_confidence=0.7,
                          min_tracking_confidence=0.7,
-                         max_num_hands=2) as hands:
+                         max_num_hands=2) as hands):
         while True:
             success, frame = cap.read()
             if not success:
@@ -41,15 +44,20 @@ if __name__ == '__main__':
                     mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
                     # Track mouse movement to wrist
-                    x, y = int(hand_landmarks.landmark[0].x * frame_w), int(hand_landmarks.landmark[0].y * frame_h)
-                    pag.moveTo(x, y, .1)
+                    x, y = int(scale_position(hand_landmarks.landmark[5].x) * frame_w), int(scale_position(hand_landmarks.landmark[5].y) * frame_h)
+                    # print(f"x: {hand_landmarks.landmark[5].x}, y: {hand_landmarks.landmark[5].y}")
+                    pag.moveTo(x, y)
 
                     # Left click if thumb and index finger within certain distance
-                    x1, y1 = int(hand_landmarks.landmark[4].x * frame_w), int(hand_landmarks.landmark[4].y * frame_h)
-                    x2, y2 = int(hand_landmarks.landmark[8].x * frame_w), int(hand_landmarks.landmark[8].y * frame_h)
-                    print(distance(x1, y1, x2, y2))
-                    if distance(x1, y1, x2, y2) < 50:
-                        print("Click")
+                    # Right click if thumb and middle finger are close
+                    if abs(hand_landmarks.landmark[4].x * frame_w - hand_landmarks.landmark[8].x* frame_w) < 50 and \
+                        abs(hand_landmarks.landmark[4].y * frame_h - hand_landmarks.landmark[8].y * frame_h) < 50:
+                        pag.click(button='left')
+                        print("left click")
+                    elif abs(hand_landmarks.landmark[4].x * frame_w - hand_landmarks.landmark[12].x* frame_w) < 50 and \
+                        abs(hand_landmarks.landmark[4].y * frame_h - hand_landmarks.landmark[12].y * frame_h) < 50:
+                        pag.click(button='right')
+                        print("right click")
 
             cv2.imshow("capture", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
