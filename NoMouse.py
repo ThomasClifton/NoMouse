@@ -2,7 +2,13 @@ import cv2
 import mediapipe as mp
 import pyautogui as pag
 import math
+import configparser
 
+config = configparser.ConfigParser()
+config.read('settings.ini')
+
+video_source = config['application']['video_source']
+quit_key = config['application']['quit_key']
 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
@@ -11,7 +17,7 @@ def scale_position(val):
     return (val-.1)/.8
 
 if __name__ == '__main__':
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(int(video_source))
 
     ptime = 0
     ctime = 0
@@ -62,7 +68,7 @@ if __name__ == '__main__':
             cv2.imshow("capture", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
             key = cv2.waitKey(1)
-            if key == ord('q'):
+            if key == ord(quit_key):
                 break
 
     cap.release()
