@@ -2,16 +2,18 @@ import math
 import cv2
 import mediapipe as mp
 import pyautogui as pag
+import numpy as np
 import time
 import tkinter as tk
 from PIL import Image, ImageTk
 import configparser
+from pynput.mouse import Controller
 
 config = configparser.ConfigParser()
 config.read('settings.ini')
 
 video_source = config.get('application','video_source')
-quit_key = config.get('application','quit_key')
+hand_preference = config.get('application','hand_preference')
 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
@@ -23,8 +25,8 @@ def set_capture_device(num):
     config.set('application', 'video_source', str(num))
     save_config()
 
-def set_quit_key(key):
-    config.set('application', 'quit_key', key)
+def set_hand_preference(hand):
+    config.set('application', 'hand_preference', hand)
     save_config()
 
 def save_config():
@@ -52,6 +54,8 @@ class GestureProcessor:
                                          min_detection_confidence=0.5,
                                          min_tracking_confidence=0.5,
                                          max_num_hands=2)
+        self.hands.use_gpu = True
+        self.mouse = Controller()
 
     def process_image(self, frame):
         if not self.running:
@@ -67,27 +71,39 @@ class GestureProcessor:
         image.flags.writeable = True
 
         if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                self.mp_drawing.draw_landmarks(image, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
+            hands_landmarks = results.multi_hand_landmarks
+            hands_handedness = results.multi_handedness
 
-                x, y = int(scale_position(hand_landmarks.landmark[5].x) * frame_w), int(
-                    scale_position(hand_landmarks.landmark[5].y) * frame_h)
-
-                # Move cursor to the position detected by the hand
-                pag.moveTo(x, y)
-
-                # Left click if thumb and index finger within certain distance
-                # Right click if thumb and middle finger are close
-                if abs(hand_landmarks.landmark[4].x * frame_w - hand_landmarks.landmark[8].x * frame_w) < 50 and \
-                        abs(hand_landmarks.landmark[4].y * frame_h - hand_landmarks.landmark[8].y * frame_h) < 50:
-                    pag.click(button='left')
-                    print("left click")
-                elif abs(hand_landmarks.landmark[4].x * frame_w - hand_landmarks.landmark[12].x * frame_w) < 50 and \
-                        abs(hand_landmarks.landmark[4].y * frame_h - hand_landmarks.landmark[12].y * frame_h) < 50:
-                    pag.click(button='right')
-                    print("right click")
-
+            # If two hands in frame, only track hand preference. Else, use only hand.
+            if len(hands_landmarks) == 2:
+                for hand_landmarks, handedness in zip(hands_landmarks, hands_handedness):
+                    hand_label = handedness.classification[0].label
+                    if hand_label == hand_preference:
+                        self.track_hand(frame, hand_landmarks, frame_w, frame_h)
+            else:
+                hand_landmarks = hands_landmarks[0]
+                self.track_hand(frame, hand_landmarks, frame_w, frame_h)
         return image
+
+    def track_hand(self, frame, hand_landmarks, frame_w, frame_h):
+        self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
+
+        # Get coordinate of point on hand
+        x, y = int(scale_position(hand_landmarks.landmark[5].x) * frame_w), int(
+            scale_position(hand_landmarks.landmark[5].y) * frame_h)
+
+        self.mouse.position = (x, y)
+
+        # Left click if thumb and index finger within certain distance
+        if abs(hand_landmarks.landmark[4].x * frame_w - hand_landmarks.landmark[8].x * frame_w) < 50 and \
+                abs(hand_landmarks.landmark[4].y * frame_h - hand_landmarks.landmark[8].y * frame_h) < 50:
+            pag.click(button='left')
+            print("left click")
+        # Right click if thumb and middle finger are close
+        elif abs(hand_landmarks.landmark[4].x * frame_w - hand_landmarks.landmark[12].x * frame_w) < 50 and \
+                abs(hand_landmarks.landmark[4].y * frame_h - hand_landmarks.landmark[12].y * frame_h) < 50:
+            pag.click(button='right')
+            print("right click")
 
     def start_tracking(self):
         self.running = True
@@ -102,9 +118,10 @@ class Application(tk.Tk):
         super().__init__()
 
         self.processor = processor
+        self.config_window = None
 
         # Settings Button
-        self.settings_button = tk.Button(self, text="Settings", command=self.open_config_window)
+        self.settings_button = tk.Button(self, text="Settings", command=self.open_settings_window)
         self.settings_button.pack(anchor=tk.W, expand=True)
 
         # canvas to display the video feed
@@ -157,29 +174,37 @@ class Application(tk.Tk):
         # Updates again after 10 ms
         self.after(10, self.update_video_frame)
 
-    def open_config_window(self):
-        config_window = tk.Toplevel(self)
-        config_window.title("Settings")
+    def open_settings_window(self):
+        if self.config_window and self.config_window.winfo_exists():  # Check if window is already open
+            return
 
-        label = tk.Label(config_window, text="Choose a webcam:")
-        label.pack(pady=10)
+        self.config_window = tk.Toplevel(self)
+        self.config_window.title("Settings")
+        self.config_window.geometry("200x100")
+        webcams = tk.StringVar(self.config_window)
 
-        webcams = tk.StringVar(config_window)
+        webcam_label = tk.Label(self.config_window, text="Choose a webcam:")
+        webcam_menu = tk.OptionMenu(self.config_window, webcams, *webcam_list)
 
-        option_menu = tk.OptionMenu(config_window, webcams, *webcam_list)
-        option_menu.pack()
-
-        def save_options():
+        def save_settings():
             webcam = webcams.get()
             self.cap.release()
             self.cap = cv2.VideoCapture(int(webcam))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            config_window.destroy()
+            self.config_window.destroy()
             set_capture_device(webcam)
 
-        save_button = tk.Button(config_window, text="Save", command=save_options)
-        save_button.pack()
+        def close_settings():
+            self.config_window.destroy()
+
+        save_button = tk.Button(self.config_window, text="Save", command=save_settings)
+        close_button = tk.Button(self.config_window, text="Close", command=close_settings)
+
+        webcam_label.grid(column=0,row=0)
+        webcam_menu.grid(column=1,row=0)
+        save_button.grid(column=0,row=2)
+        close_button.grid(column=1,row=2)
 
     def start_tracking(self):
         self.processor.start_tracking()
