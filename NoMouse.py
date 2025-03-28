@@ -5,6 +5,7 @@ import pyautogui as pag
 import numpy as np
 import time
 import tkinter as tk
+import pandas as pd
 from PIL import Image, ImageTk
 import configparser
 from pynput.mouse import Controller
@@ -14,6 +15,12 @@ config.read('settings.ini')
 
 video_source = config.get('application','video_source')
 hand_preference = config.get('application','hand_preference')
+
+gestureCSV = pd.read_csv('hand_gestures_data.csv')
+
+FINGERTIPS = [4, 8, 12, 16, 20]
+LEFT_CLICK = 0
+RIGHT_CLICK = 1
 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
@@ -94,14 +101,28 @@ class GestureProcessor:
 
         self.mouse.position = (x, y)
 
-        # Left click if thumb and index finger within certain distance
-        if abs(hand_landmarks.landmark[4].x * frame_w - hand_landmarks.landmark[8].x * frame_w) < 50 and \
-                abs(hand_landmarks.landmark[4].y * frame_h - hand_landmarks.landmark[8].y * frame_h) < 50:
+        LeftClickBool = True
+        RightClickBool = True
+
+        for index, finger in enumerate(FINGERTIPS):
+            if gestureCSV.iloc[LEFT_CLICK, (index + 11)] == True:
+                if distance(hand_landmarks.landmark[finger].x * frame_w,
+                            hand_landmarks.landmark[finger].y * frame_h,
+                            hand_landmarks.landmark[gestureCSV.iloc[LEFT_CLICK, (index + 1)]].x * frame_w,
+                            hand_landmarks.landmark[gestureCSV.iloc[LEFT_CLICK, (index + 1)]].y * frame_h) > gestureCSV.iloc[LEFT_CLICK, (index + 6)]:
+                    LeftClickBool = False
+
+            if gestureCSV.iloc[RIGHT_CLICK, (index + 11)] == True:
+                if distance(hand_landmarks.landmark[finger].x * frame_w,
+                            hand_landmarks.landmark[finger].y * frame_h,
+                            hand_landmarks.landmark[gestureCSV.iloc[RIGHT_CLICK, (index + 1)]].x * frame_w,
+                            hand_landmarks.landmark[gestureCSV.iloc[RIGHT_CLICK, (index + 1)]].y * frame_h) > gestureCSV.iloc[RIGHT_CLICK, (index + 6)]:
+                    RightClickBool = False
+
+        if LeftClickBool is True:
             pag.click(button='left')
             print("left click")
-        # Right click if thumb and middle finger are close
-        elif abs(hand_landmarks.landmark[4].x * frame_w - hand_landmarks.landmark[12].x * frame_w) < 50 and \
-                abs(hand_landmarks.landmark[4].y * frame_h - hand_landmarks.landmark[12].y * frame_h) < 50:
+        elif RightClickBool is True:
             pag.click(button='right')
             print("right click")
 
