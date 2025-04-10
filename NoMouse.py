@@ -78,16 +78,16 @@ class GestureProcessor:
             if len(hands_landmarks) == 2:
                 for hand_landmarks, handedness in zip(hands_landmarks, hands_handedness):
                     hand_label = handedness.classification[0].label
+                    self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
                     if hand_label == hand_preference:
                         self.track_hand(frame, hand_landmarks, frame_w, frame_h)
             else:
+                print("Tracking one hand")
                 hand_landmarks = hands_landmarks[0]
                 self.track_hand(frame, hand_landmarks, frame_w, frame_h)
         return image
 
     def track_hand(self, frame, hand_landmarks, frame_w, frame_h):
-        self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
-
         # Get coordinate of point on hand
         x, y = int(scale_position(hand_landmarks.landmark[5].x) * frame_w), int(
             scale_position(hand_landmarks.landmark[5].y) * frame_h)
