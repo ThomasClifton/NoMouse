@@ -22,9 +22,6 @@ FINGERTIPS = [4, 8, 12, 16, 20]
 LEFT_CLICK = 0
 RIGHT_CLICK = 1
 SCROLL = 2
-prev_Y = 0
-ScrollUpBool = False
-ScrollDownBool = False
 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
@@ -67,6 +64,9 @@ class GestureProcessor:
                                          max_num_hands=2)
         self.hands.use_gpu = True
         self.mouse = Controller()
+        self.prev_Y = 0
+        self.ScrollUpBool = False
+        self.ScrollDownBool = False
 
     def process_image(self, frame):
         if not self.running:
@@ -132,33 +132,33 @@ class GestureProcessor:
                     ScrollBool = False
 
         if ScrollBool is True:
-            if ScrollUpBool == True:
+            if self.ScrollUpBool == True:
                 pag.scroll(3)
                 print("scrollUp")
-            elif ScrollDownBool == True:
+            elif self.ScrollDownBool == True:
                 pag.scroll(-3)
                 print("scrollDown")
-            if y < prev_Y:
-                ScrollUpBool = True
-                ScrollDownBool = False
-            elif y > prev_Y:
-                ScrollDownBool = True
-                ScrollUpBool = False
+            if y < self.prev_Y:
+                self.ScrollUpBool = True
+                self.ScrollDownBool = False
+            elif y > self.prev_Y:
+                self.ScrollDownBool = True
+                self.ScrollUpBool = False
         elif LeftClickBool is True:
             pag.click(button='left')
-            ScrollUpBool = False
-            ScrollDownBool = False
+            self.ScrollUpBool = False
+            self.ScrollDownBool = False
             print("left click")
         elif RightClickBool is True:
             pag.click(button='right')
-            ScrollUpBool = False
-            ScrollDownBool = False
+            self.ScrollUpBool = False
+            self.ScrollDownBool = False
             print("right click")
         else:
-            ScrollUpBool = False
-            ScrollDownBool = False
+            self.ScrollUpBool = False
+            self.ScrollDownBool = False
 
-        prev_Y = y
+        self.prev_Y = y
 
     def start_tracking(self):
         self.running = True
