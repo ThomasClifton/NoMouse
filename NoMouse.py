@@ -21,6 +21,10 @@ gestureCSV = pd.read_csv('hand_gestures_data.csv')
 FINGERTIPS = [4, 8, 12, 16, 20]
 LEFT_CLICK = 0
 RIGHT_CLICK = 1
+SCROLL = 2
+prev_Y = 0
+ScrollUpBool = False
+ScrollDownBool = False
 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
@@ -103,6 +107,7 @@ class GestureProcessor:
 
         LeftClickBool = True
         RightClickBool = True
+        ScrollBool = True
 
         for index, finger in enumerate(FINGERTIPS):
             if gestureCSV.iloc[LEFT_CLICK, (index + 11)] == True:
@@ -119,12 +124,41 @@ class GestureProcessor:
                             hand_landmarks.landmark[gestureCSV.iloc[RIGHT_CLICK, (index + 1)]].y * frame_h) > gestureCSV.iloc[RIGHT_CLICK, (index + 6)]:
                     RightClickBool = False
 
-        if LeftClickBool is True:
+            if gestureCSV.iloc[SCROLL, (index + 11)] == True:
+                if distance(hand_landmarks.landmark[finger].x * frame_w,
+                            hand_landmarks.landmark[finger].y * frame_h,
+                            hand_landmarks.landmark[gestureCSV.iloc[SCROLL, (index + 1)]].x * frame_w,
+                            hand_landmarks.landmark[gestureCSV.iloc[SCROLL, (index + 1)]].y * frame_h) > gestureCSV.iloc[SCROLL, (index + 6)]:
+                    ScrollBool = False
+
+        if ScrollBool is True:
+            if ScrollUpBool == True:
+                pag.scroll(3)
+                print("scrollUp")
+            elif ScrollDownBool == True:
+                pag.scroll(-3)
+                print("scrollDown")
+            if y < prev_Y:
+                ScrollUpBool = True
+                ScrollDownBool = False
+            elif y > prev_Y:
+                ScrollDownBool = True
+                ScrollUpBool = False
+        elif LeftClickBool is True:
             pag.click(button='left')
+            ScrollUpBool = False
+            ScrollDownBool = False
             print("left click")
         elif RightClickBool is True:
             pag.click(button='right')
+            ScrollUpBool = False
+            ScrollDownBool = False
             print("right click")
+        else:
+            ScrollUpBool = False
+            ScrollDownBool = False
+
+        prev_Y = y
 
     def start_tracking(self):
         self.running = True
