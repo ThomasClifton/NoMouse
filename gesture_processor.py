@@ -6,6 +6,7 @@ from utils import distance, scale_position, get_total_screen_dimensions
 FINGERTIPS = [4, 8, 12, 16, 20]
 LEFT_CLICK = 0
 RIGHT_CLICK = 1
+SCROLL = 2
 
 
 class GestureProcessor:
@@ -28,6 +29,11 @@ class GestureProcessor:
 
         self.left_mouse_down = False
         self.right_mouse_down = False
+        self.scroll_active = False
+        self.prev_y = 0
+        self.scroll_threshold = 5
+        self.scroll_amount = 2
+        self.scroll_cooldown = 0
 
         self.smoothing_factor = 0.3
         self.previous_x = 0
@@ -88,60 +94,115 @@ class GestureProcessor:
         smoothed_position = self.smooth_position(raw_x, raw_y)
         x, y = smoothed_position
 
-        self.mouse.position = (x, y)
+        # Only update mouse position if not in scroll mode
+        if not self.scroll_active:
+            self.mouse.position = (x, y)
 
+        scroll_detected = True
         for index, finger in enumerate(FINGERTIPS):
-            # Left click gesture processing
-            if self.gesture_data.iloc[LEFT_CLICK, (index + 11)]:
-                ref_landmark_idx = int(self.gesture_data.iloc[LEFT_CLICK, (index + 1)])
-                threshold = self.gesture_data.iloc[LEFT_CLICK, (index + 6)]
+            # Skip if the column doesn't exist in the data
+            if index + 11 >= len(self.gesture_data.columns) or not self.gesture_data.iloc[SCROLL, (index + 11)]:
+                continue
 
-                if ref_landmark_idx < 0 or ref_landmark_idx >= len(hand_landmarks.landmark):
-                    continue
+            ref_landmark_idx = int(self.gesture_data.iloc[SCROLL, (index + 1)])
+            threshold = self.gesture_data.iloc[SCROLL, (index + 6)]
 
-                finger_dist = distance(
-                    hand_landmarks.landmark[finger].x * frame_w,
-                    hand_landmarks.landmark[finger].y * frame_h,
-                    hand_landmarks.landmark[ref_landmark_idx].x * frame_w,
-                    hand_landmarks.landmark[ref_landmark_idx].y * frame_h
-                )
+            if ref_landmark_idx < 0 or ref_landmark_idx >= len(hand_landmarks.landmark):
+                continue
 
-                if finger_dist < threshold:
-                    if not self.left_mouse_down:
-                        self.mouse.press(Button.left)
-                        self.left_mouse_down = True
-                        print("Left mouse down")
+            finger_dist = distance(
+                hand_landmarks.landmark[finger].x * frame_w,
+                hand_landmarks.landmark[finger].y * frame_h,
+                hand_landmarks.landmark[ref_landmark_idx].x * frame_w,
+                hand_landmarks.landmark[ref_landmark_idx].y * frame_h
+            )
+
+            # If any finger position doesn't match the scroll gesture, don't scroll
+            if finger_dist > threshold:
+                scroll_detected = False
+                break
+
+        # Handle scrolling if the scroll gesture is detected
+        if scroll_detected:
+            if not self.scroll_active:
+                self.scroll_active = True
+                self.prev_y = y
+            else:
+                # Already in scroll mode, check for vertical movement
+                if self.scroll_cooldown <= 0:
+                    if y < self.prev_y - self.scroll_threshold:
+                        # Scroll up
+                        self.mouse.scroll(0, self.scroll_amount)
+                        self.prev_y = y
+                        self.scroll_cooldown = 3  # Add cooldown to prevent too rapid scrolling
+                        print("Scrolling up")
+                    elif y > self.prev_y + self.scroll_threshold:
+                        # Scroll down
+                        self.mouse.scroll(0, -self.scroll_amount)
+                        self.prev_y = y
+                        self.scroll_cooldown = 3  # Add cooldown to prevent too rapid scrolling
+                        print("Scrolling down")
                 else:
-                    if self.left_mouse_down:
-                        self.mouse.release(Button.left)
-                        self.left_mouse_down = False
-                        print("Left mouse up")
+                    self.scroll_cooldown -= 1
+        else:
+            # Scroll gesture not detected
+            if self.scroll_active:
+                print("Scroll mode deactivated")
+            self.scroll_active = False
 
-            # Right click gesture processing
-            if self.gesture_data.iloc[RIGHT_CLICK, (index + 11)]:
-                ref_landmark_idx = int(self.gesture_data.iloc[RIGHT_CLICK, (index + 1)])
-                threshold = self.gesture_data.iloc[RIGHT_CLICK, (index + 6)]
+            # Process mouse clicks only if not scrolling
+            for index, finger in enumerate(FINGERTIPS):
+                # Left click gesture processing
+                if self.gesture_data.iloc[LEFT_CLICK, (index + 11)]:
+                    ref_landmark_idx = int(self.gesture_data.iloc[LEFT_CLICK, (index + 1)])
+                    threshold = self.gesture_data.iloc[LEFT_CLICK, (index + 6)]
 
-                if ref_landmark_idx < 0 or ref_landmark_idx >= len(hand_landmarks.landmark):
-                    continue
+                    if ref_landmark_idx < 0 or ref_landmark_idx >= len(hand_landmarks.landmark):
+                        continue
 
-                finger_dist = distance(
-                    hand_landmarks.landmark[finger].x * frame_w,
-                    hand_landmarks.landmark[finger].y * frame_h,
-                    hand_landmarks.landmark[ref_landmark_idx].x * frame_w,
-                    hand_landmarks.landmark[ref_landmark_idx].y * frame_h
-                )
+                    finger_dist = distance(
+                        hand_landmarks.landmark[finger].x * frame_w,
+                        hand_landmarks.landmark[finger].y * frame_h,
+                        hand_landmarks.landmark[ref_landmark_idx].x * frame_w,
+                        hand_landmarks.landmark[ref_landmark_idx].y * frame_h
+                    )
 
-                if finger_dist < threshold:
-                    if not self.right_mouse_down:
-                        self.mouse.press(Button.right)
-                        self.right_mouse_down = True
-                        print("Right mouse down")
-                else:
-                    if self.right_mouse_down:
-                        self.mouse.release(Button.right)
-                        self.right_mouse_down = False
-                        print("Right mouse up")
+                    if finger_dist < threshold:
+                        if not self.left_mouse_down:
+                            self.mouse.press(Button.left)
+                            self.left_mouse_down = True
+                            print("Left mouse down")
+                    else:
+                        if self.left_mouse_down:
+                            self.mouse.release(Button.left)
+                            self.left_mouse_down = False
+                            print("Left mouse up")
+
+                # Right click gesture processing
+                if self.gesture_data.iloc[RIGHT_CLICK, (index + 11)]:
+                    ref_landmark_idx = int(self.gesture_data.iloc[RIGHT_CLICK, (index + 1)])
+                    threshold = self.gesture_data.iloc[RIGHT_CLICK, (index + 6)]
+
+                    if ref_landmark_idx < 0 or ref_landmark_idx >= len(hand_landmarks.landmark):
+                        continue
+
+                    finger_dist = distance(
+                        hand_landmarks.landmark[finger].x * frame_w,
+                        hand_landmarks.landmark[finger].y * frame_h,
+                        hand_landmarks.landmark[ref_landmark_idx].x * frame_w,
+                        hand_landmarks.landmark[ref_landmark_idx].y * frame_h
+                    )
+
+                    if finger_dist < threshold:
+                        if not self.right_mouse_down:
+                            self.mouse.press(Button.right)
+                            self.right_mouse_down = True
+                            print("Right mouse down")
+                    else:
+                        if self.right_mouse_down:
+                            self.mouse.release(Button.right)
+                            self.right_mouse_down = False
+                            print("Right mouse up")
 
     def smooth_position(self, x, y):
         self.position_history.append((x, y))

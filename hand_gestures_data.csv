@@ -1,3 +1,4 @@
 name,landmark_thumb,landmark_index,landmark_middle,landmark_ring,landmark_pinky,distance_thumb,distance_index,distance_middle,distance_ring,distance_pinky,tf0,tf1,tf2,tf3,tf4
 left_click,8,4,-1,-1,-1,15.0,15.0,-1.0,-1.0,-1.0,True,True,False,False,False
 right_click,12,-1,4,-1,-1,30.0,-1.0,30.0,-1.0,-1.0,True,False,True,False,False
+scroll,6,6,12,16,20,30,50,50,50,50,True,False,False,False,False
