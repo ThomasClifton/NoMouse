@@ -4,6 +4,10 @@ from config_manager import load_config
 
 
 def run_app():
+    """
+    Main entry point for the NoMouse application.
+    Initializes the config, creates the gesture processor, and launches the UI.
+    """
     config_data = load_config()
     processor = GestureProcessor()
     app = Application(processor)

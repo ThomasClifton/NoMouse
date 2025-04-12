@@ -5,6 +5,13 @@ _config = None
 
 
 def load_config():
+    """
+    Load configuration from settings.ini file.
+    If file doesn't exist or is missing sections/options, creates defaults.
+
+    Returns:
+        configparser.ConfigParser: Loaded configuration object
+    """
     global _config
     _config = configparser.ConfigParser()
     _config.read('settings.ini')
@@ -30,6 +37,10 @@ def load_config():
 
 
 def save_config():
+    """
+    Save current configuration to settings.ini file.
+    Creates the file if it doesn't exist.
+    """
     global _config
     if _config is None:
         load_config()
@@ -39,6 +50,17 @@ def save_config():
 
 
 def get_config_value(section, option, default_value=None):
+    """
+    Get a value from the configuration.
+
+    Args:
+        section (str): Configuration section
+        option (str): Option name within section
+        default_value: Value to return if option doesn't exist
+
+    Returns:
+        The configuration value or default_value if not found
+    """
     global _config
     if _config is None:
         load_config()
@@ -50,6 +72,14 @@ def get_config_value(section, option, default_value=None):
 
 
 def set_config_value(section, option, value):
+    """
+    Set a value in the configuration.
+
+    Args:
+        section (str): Configuration section
+        option (str): Option name within section
+        value: Value to set
+    """
     global _config
     if _config is None:
         load_config()

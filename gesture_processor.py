@@ -10,7 +10,21 @@ SCROLL = 2
 
 
 class GestureProcessor:
+    """
+    Processor for hand tracking and gesture recognition.
+    Detects hand landmarks, interprets gestures, and controls mouse actions.
+
+    Supports:
+    - Mouse cursor movement based on hand position
+    - Left and right mouse clicks based on finger positions
+    - Scrolling based on hand gestures and movement
+    """
+
     def __init__(self):
+        """
+        Initialize the GestureProcessor with MediaPipe hands tracking
+        and mouse control capabilities.
+        """
         self.running = False
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_hands = mp.solutions.hands
@@ -46,12 +60,33 @@ class GestureProcessor:
         self.camera_orientation = "Front Facing"
 
     def set_hand_preference(self, preference):
+        """
+        Set which hand (Left or Right) should be used for tracking.
+
+        Args:
+            preference (str): 'Left' or 'Right' to indicate preferred hand
+        """
         self.hand_preference = preference
 
     def set_camera_orientation(self, orientation):
+        """
+        Set the camera orientation for proper hand tracking.
+
+        Args:
+            orientation (str): 'Front Facing' or 'Top Down'
+        """
         self.camera_orientation = orientation
 
     def process_image(self, frame):
+        """
+        Process a video frame to detect hand landmarks and perform gesture tracking.
+
+        Args:
+            frame (numpy.ndarray): Video frame from webcam
+
+        Returns:
+            numpy.ndarray: Processed frame with hand landmarks drawn
+        """
         if not self.running:
             return frame
 
@@ -86,6 +121,19 @@ class GestureProcessor:
         return image
 
     def track_hand(self, frame, hand_landmarks):
+        """
+        Track hand position and gestures to control mouse behavior.
+
+        Handles:
+        - Mouse cursor positioning based on hand movement
+        - Left/right click detection based on finger positions
+        - Scroll gesture detection and vertical scrolling
+
+        Args:
+            frame (numpy.ndarray): The current video frame
+            hand_landmarks (mediapipe.framework.formats.landmark_pb2.NormalizedLandmarkList):
+                Detected hand landmarks
+        """
         frame_h, frame_w = frame.shape[:2]
 
         raw_x = int(scale_position(hand_landmarks.landmark[5].x) * self.total_width) + self.min_x
@@ -205,6 +253,18 @@ class GestureProcessor:
                             print("Right mouse up")
 
     def smooth_position(self, x, y):
+        """
+        Apply smoothing to cursor movement to reduce jitter.
+
+        Uses a combination of averaging and momentum for smoother tracking.
+
+        Args:
+            x (int): Raw x-coordinate
+            y (int): Raw y-coordinate
+
+        Returns:
+            tuple: Smoothed (x, y) coordinates
+        """
         self.position_history.append((x, y))
 
         if len(self.position_history) > self.history_size:
@@ -222,6 +282,10 @@ class GestureProcessor:
         return smoothed_x, smoothed_y
 
     def release_all_buttons(self):
+        """
+        Release any currently pressed mouse buttons.
+        Called when hand tracking is lost or stopped.
+        """
         if self.left_mouse_down:
             self.mouse.release(Button.left)
             self.left_mouse_down = False
@@ -233,10 +297,18 @@ class GestureProcessor:
             print("right mouse released (no hand)")
 
     def start_tracking(self):
+        """
+        Begin hand tracking and mouse control.
+        Initializes tracking state variables.
+        """
         self.running = True
         self.previous_x, self.previous_y = self.total_width // 2 + self.min_x, self.total_height // 2 + self.min_y
         self.position_history = [(self.previous_x, self.previous_y)] * self.history_size
 
     def stop_tracking(self):
+        """
+        Stop hand tracking and mouse control.
+        Ensures all mouse buttons are released.
+        """
         self.running = False
         self.release_all_buttons()

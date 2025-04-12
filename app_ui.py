@@ -9,7 +9,22 @@ from utils import find_webcams
 
 
 class Application(ThemedTk):
+    """
+    Main application class for the NoMouse UI.
+    Creates a themed tkinter window with video feed and controls
+    for tracking hand gestures and converting them to mouse actions.
+
+    Args:
+        processor (GestureProcessor): The processor instance that handles gesture detection
+    """
+
     def __init__(self, processor):
+        """
+        Initialize the application with a themed UI and connect to the gesture processor.
+
+        Args:
+            processor (GestureProcessor): Instance that processes webcam input for hand tracking
+        """
         current_theme = get_config_value('application', 'theme', 'arc')
 
         super().__init__(theme=current_theme)
@@ -81,6 +96,9 @@ class Application(ThemedTk):
         self.update_video_frame()
 
     def update_background(self):
+        """
+        Update the application background to match the current theme.
+        """
         try:
             bg_color = self.themed_style.lookup('TFrame', 'background')
             if not bg_color:
@@ -91,6 +109,11 @@ class Application(ThemedTk):
             print(f"Error updating background: {e}")
 
     def update_video_frame(self):
+        """
+        Capture and process webcam frame to display in the UI.
+        Updates the video display with processed frames and calculates FPS.
+        Runs continuously using tkinter's after() method.
+        """
         ret, frame = self.cap.read()
         if ret:
             # Process the frame and get the result
@@ -118,6 +141,10 @@ class Application(ThemedTk):
         self.after(10, self.update_video_frame)
 
     def open_settings_window(self):
+        """
+        Open a settings dialog to configure application preferences.
+        Allows user to select webcam, hand preference, camera orientation, and UI theme.
+        """
         if self.config_window and self.config_window.winfo_exists():
             self.config_window.lift()
             return
@@ -202,6 +229,15 @@ class Application(ThemedTk):
         preview_entry.insert(0, "Sample text")
 
         def on_theme_change(event):
+            """
+            Handle theme selection changes in the settings window.
+
+            Updates the preview area in real-time to show the selected theme's appearance
+            by applying the new theme to the settings window components.
+
+            Args:
+                event: The ComboboxSelected event triggered by changing the theme selection
+            """
             selected_theme = theme_var.get()
             style.set_theme(selected_theme)
             try:
@@ -216,6 +252,18 @@ class Application(ThemedTk):
         button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
 
         def save_settings():
+            """
+            Save all settings from the configuration window and apply them.
+
+            Processes and saves:
+            - Webcam selection (updates video capture if changed)
+            - Theme selection (applies new theme if changed)
+            - Hand preference (updates processor settings)
+            - Camera orientation (updates processor settings)
+
+            Updates the configuration file and closes the settings window.
+            Updates status bar to inform the user that settings have been changed.
+            """
             webcam = webcams.get()
             theme = theme_var.get()
             hand = hand_var.get()
@@ -258,6 +306,13 @@ class Application(ThemedTk):
                 self.status_var.set("Ready - Not tracking")
 
         def close_settings():
+            """
+            Close the settings window without saving changes.
+
+            Destroys the settings window and restores the current theme
+            to ensure UI consistency if the theme was previewed but not saved.
+            Any changes made in the settings dialog are discarded.
+            """
             self.config_window.destroy()
             current_theme = get_config_value('application', 'theme', 'arc')
             self.themed_style.theme_use(current_theme)
@@ -269,18 +324,30 @@ class Application(ThemedTk):
         save_button.pack(side=tk.RIGHT, padx=5)
 
     def start_tracking(self):
+        """
+        Begin hand tracking and mouse control.
+        Enables the gesture processor and updates UI state.
+        """
         self.processor.start_tracking()
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
         self.status_var.set("Active - Tracking enabled")
 
     def stop_tracking(self):
+        """
+        Stop hand tracking and mouse control.
+        Disables the gesture processor and updates UI state.
+        """
         self.processor.stop_tracking()
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.status_var.set("Ready - Not tracking")
 
     def on_close(self):
+        """
+        Handle application closing.
+        Releases resources and ensures clean shutdown.
+        """
         self.processor.running = False
         self.processor.release_all_buttons()
         self.cap.release()
