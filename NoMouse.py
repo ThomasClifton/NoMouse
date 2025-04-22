@@ -2,12 +2,6 @@ from gesture_processor import GestureProcessor
 from app_ui import Application
 from config_manager import load_config
 
-config = configparser.ConfigParser()
-config.read('settings.ini')
-
-video_source = config['application']['video_source']
-quit_key = config['application']['quit_key']
-
 def run_app():
     """
     Main entry point for the NoMouse application.
