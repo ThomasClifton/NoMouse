@@ -108,7 +108,7 @@ class GestureProcessor:
                 for hand_landmarks, handedness in zip(hands_landmarks, hands_handedness):
                     hand_label = handedness.classification[0].label
                     self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
-                    if hand_label == self.hand_preference:
+                    if hand_label != self.hand_preference:
                         self.track_hand(frame, hand_landmarks)
             else:
                 hand_landmarks = hands_landmarks[0]
